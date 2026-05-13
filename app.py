@@ -63,11 +63,14 @@ with st.sidebar:
 for message in st.session_state.chat_session.history:
     role = "assistant" if message.role == "model" else "user"
     with st.chat_message(role):
+        # Safely extract the text whether Streamlit saved it as an object or a plain string
+        msg_text = message.parts[0].text if hasattr(message.parts[0], 'text') else str(message.parts[0])
+        
         # If the history contains HTML, show a placeholder instead of the code wall
-        if "<!DOCTYPE html>" in message.parts[0].text or "<html" in message.parts[0].text:
+        if "<!DOCTYPE html>" in msg_text or "<html" in msg_text:
             st.info("📄 HTML Report Generated in previous turn.")
         else:
-            st.markdown(message.parts[0].text)
+            st.markdown(msg_text)
 
 if prompt := st.chat_input("Ask your wealth advisor a question..."):
     with st.chat_message("user"):
@@ -98,7 +101,7 @@ if prompt := st.chat_input("Ask your wealth advisor a question..."):
             if "<!DOCTYPE" not in full_response and "<html" not in full_response:
                 message_placeholder.markdown(full_response + "▌")
         
-                # FINAL RENDER LOGIC
+        # FINAL RENDER LOGIC
         if "<!DOCTYPE html>" in full_response or "<html" in full_response:
             message_placeholder.empty() # Clear the code wall
             st.success("✅ Institutional Report Generated Successfully")
