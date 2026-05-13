@@ -1,0 +1,7 @@
+ai-wealth-advisor/
+│
+├── app.py                 # The main Streamlit application
+├── requirements.txt       # Python dependencies
+├── .env                   # Local API keys (DO NOT COMMIT)
+├── .gitignore             # Tells Git what to hide
+└── system_prompt.md       # The wealth advisory prompt template you uploaded
