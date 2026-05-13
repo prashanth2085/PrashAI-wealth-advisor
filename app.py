@@ -71,7 +71,13 @@ if prompt := st.chat_input("Ask your wealth advisor a question..."):
     if st.session_state.portfolio_data is not None:
         context = f"\n\n[System Context: The user's current portfolio data is as follows:\n{st.session_state.portfolio_data.to_string()}]\n"
     
-    full_prompt = prompt + context
+    # Enforce chat formatting and handle the missing historical report
+behavior_override = """
+CRITICAL INSTRUCTIONS FOR THIS RESPONSE:
+1. DO NOT output any HTML, CSS, or Javascript. Respond ONLY in clean, conversational Markdown (use bolding, bullet points, and simple markdown tables).
+2. I have not provided a 'previous HTML report'. Treat this as the 'Initial Baseline Review'. Do not ask me for a previous report, and do not complain that it is missing. Simply skip the historical comparison and analyze the current portfolio data provided.
+"""
+full_prompt = prompt + context + behavior_override
 
     # Get response from Gemini
     with st.chat_message("assistant"):
