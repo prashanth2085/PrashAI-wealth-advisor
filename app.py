@@ -27,7 +27,7 @@ SYSTEM_PROMPT = load_system_prompt()
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY") or st.secrets.get("GEMINI_API_KEY"))
 model = genai.GenerativeModel(
     model_name="gemini-2.5-flash",
-    system_instruction=SYSTEM_PROMPT
+    system_instruction=SYSTEM_PROMPT + "\n\nCRITICAL OVERRIDE: You are now operating in a conversational Streamlit chat interface. NEVER output raw HTML, CSS, or Javascript. ALWAYS format your responses in clean, readable Markdown (using bolding, bullets, and markdown tables)."
 )
 
 # Initialize Session State for Chat History
