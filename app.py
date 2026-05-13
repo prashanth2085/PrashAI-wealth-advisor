@@ -98,21 +98,35 @@ if prompt := st.chat_input("Ask your wealth advisor a question..."):
             if "<!DOCTYPE" not in full_response and "<html" not in full_response:
                 message_placeholder.markdown(full_response + "▌")
         
-        # FINAL RENDER LOGIC
+                # FINAL RENDER LOGIC
         if "<!DOCTYPE html>" in full_response or "<html" in full_response:
             message_placeholder.empty() # Clear the code wall
             st.success("✅ Institutional Report Generated Successfully")
             
-            # Provide a native download button for the HTML file
+            # --- NEW CLEANING LOGIC ---
+            # Extract ONLY the raw HTML, stripping away conversational text and markdown backticks
+            clean_html = full_response
+            start_tag = "<!DOCTYPE html>" if "<!DOCTYPE html>" in clean_html else "<html"
+            
+            if start_tag in clean_html:
+                clean_html = clean_html[clean_html.find(start_tag):]
+                # Remove the closing markdown backticks if they exist
+                if clean_html.endswith("```"):
+                    clean_html = clean_html[:-3]
+                elif "\n```" in clean_html:
+                    clean_html = clean_html.split("\n```")[0]
+            # --------------------------
+            
+            # Provide a native download button for the CLEANED HTML file
             st.download_button(
                 label="📥 Download Wealth Advisory Report (.html)",
-                data=full_response,
+                data=clean_html,
                 file_name="wealth_advisory_report.html",
                 mime="text/html"
             )
             
             # Render the HTML directly inside a safe iframe in the app
             with st.expander("🔍 Preview Report", expanded=True):
-                components.html(full_response, height=800, scrolling=True)
+                components.html(clean_html, height=800, scrolling=True)
         else:
             message_placeholder.markdown(full_response)
