@@ -3,6 +3,7 @@ import streamlit.components.v1 as components
 import google.generativeai as genai
 import pandas as pd
 import os
+from datetime import datetime
 from dotenv import load_dotenv
 
 # Load local environment variables (API Key)
@@ -58,8 +59,12 @@ with st.sidebar:
         st.rerun()
 
 # --- BUILD THE AI'S BRAIN (SYSTEM PROMPT) ---
-# We inject the data here so it doesn't snowball in the chat history
+# Inject today's exact date so the AI stops hallucinating the calendar
+today_date = datetime.now().strftime("%B %d, %Y")
+
 dynamic_system_prompt = BASE_SYSTEM_PROMPT
+dynamic_system_prompt += f"\n\n[System Context: Today's absolute date is {today_date}. Use this exact date for all reports and analysis.]\n"
+
 if st.session_state.portfolio_data is not None:
     dynamic_system_prompt += f"\n\n[System Context: Current Portfolio Data:\n{st.session_state.portfolio_data.to_string()}]\n"
 if st.session_state.previous_report is not None:
@@ -68,11 +73,24 @@ if st.session_state.previous_report is not None:
 else:
     dynamic_system_prompt += "\nCRITICAL INSTRUCTION: No previous report provided. Treat this as the Initial Baseline Review."
 
-# Initialize Gemini Model with Dynamic Memory
+# Add the Routing Directive to stop the AI from forcing a report on every question
+dynamic_system_prompt += """
+\nCRITICAL ROUTING INSTRUCTIONS:
+1. If the user asks a SPECIFIC question (e.g., "Should I average down on IT?", "How is HDFCBANK?"), answer ONLY that question directly, analytically, and conversationally using standard Markdown text. Do NOT generate the full HTML report.
+2. If the user explicitly asks for a "baseline review", "full report", or "comparative analysis", ONLY THEN should you generate the massive, comprehensive HTML dashboard.
+
+CRITICAL ANTI-TRUNCATION DIRECTIVE:
+When generating the HTML report, you MUST complete the ENTIRE document. Do NOT truncate, do NOT summarize, and do NOT use placeholders. You MUST write out the full, detailed analysis for Sections 8 (Portfolio Health), 9 (Wealth Projection), and 10 (Action Plan). Do not stop generating until the final </html> tag is complete.
+"""
+
+# Initialize Gemini Model with Maximized Output Tokens
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY") or st.secrets.get("GEMINI_API_KEY"))
 model = genai.GenerativeModel(
     model_name="gemini-2.5-flash",
-    system_instruction=dynamic_system_prompt
+    system_instruction=dynamic_system_prompt,
+    generation_config={
+        "max_output_tokens": 8192, # Removes the restrictor plate
+    }
 )
 
 # Initialize Chat Session
@@ -119,6 +137,21 @@ if prompt := st.chat_input("Ask your wealth advisor a question..."):
                     elif "\n```" in clean_html:
                         clean_html = clean_html.split("\n```")[0]
                 
+                # --- PROMPT INJECTION LOGIC ---
+                # Create a styled banner for the prompt
+                prompt_banner = f"""
+                <div style="background-color: #f8f9fa; border-left: 4px solid #0d47a1; padding: 15px; margin: 20px auto; max-width: 1200px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                    <h4 style="margin-top: 0; color: #0d47a1; font-size: 14px; text-transform: uppercase;">Prompted Question:</h4>
+                    <p style="margin: 0; font-size: 16px; color: #333;"><i>"{prompt}"</i></p>
+                </div>
+                """
+                
+                # Inject it right after the opening <body> tag
+                if "<body" in clean_html:
+                    body_end_index = clean_html.find(">", clean_html.find("<body")) + 1
+                    clean_html = clean_html[:body_end_index] + prompt_banner + clean_html[body_end_index:]
+                # ------------------------------
+
                 st.download_button(
                     label="📥 Download Wealth Advisory Report (.html)",
                     data=clean_html,
